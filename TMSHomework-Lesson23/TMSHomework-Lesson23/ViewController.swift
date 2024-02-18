@@ -29,6 +29,12 @@ class ViewController: UIViewController, WKNavigationDelegate {
     let forwardButton = UIButton()
     let reloadButton = UIButton()
     let favoritesButton = UIButton()
+    let favoritesTable: UITableView = {
+        let tableView = UITableView()
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        return tableView
+    }()
+    var urlArray: [SavedURL] = []
     
     let favoritesView = UIView(frame: CGRect(x: 0, y: UIScreen.main.bounds.height, width: UIScreen.main.bounds.width, height: 200))
     let greyView = UIView(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height))
@@ -36,8 +42,11 @@ class ViewController: UIViewController, WKNavigationDelegate {
     let addToFavoritesButton: UIButton = {
         let button = UIButton()
         button.backgroundColor = .clear
-        button.setTitle("Добавить закладку", for: .normal)
+        button.setImage(UIImage(systemName: "plus"), for: .normal)
+        button.tintColor = .white
+        button.setTitle(" Добавить закладку", for: .normal)
         button.setTitleColor(.white, for: .normal)
+        button.setTitleColor(.gray, for: .highlighted)
         button.layer.cornerRadius = 15
         button.layer.borderWidth = 3
         button.layer.borderColor = UIColor.white.cgColor
@@ -179,8 +188,25 @@ class ViewController: UIViewController, WKNavigationDelegate {
         view.addSubview(greyView)
     }
     
+    private func setupFavoritesTable() {
+        favoritesTable.layer.cornerRadius = 15
+        favoritesTable.delegate = self
+        favoritesTable.dataSource = self
+        favoritesTable.reloadData()
+        favoritesTable.register(FavoritesTableViewCell.self, forCellReuseIdentifier: "FavoritesTableViewCell")
+        
+        favoritesView.addSubview(favoritesTable)
+        
+        NSLayoutConstraint.activate([
+            favoritesTable.topAnchor.constraint(equalTo: addToFavoritesButton.bottomAnchor, constant: 20),
+            favoritesTable.leadingAnchor.constraint(equalTo: favoritesView.leadingAnchor, constant: 20),
+            favoritesTable.widthAnchor.constraint(equalTo: favoritesView.widthAnchor, constant: -40),
+            favoritesTable.heightAnchor.constraint(equalTo: favoritesView.heightAnchor, constant: -120)
+        ])
+    }
+    
     @objc func processTap(_ gesture: UITapGestureRecognizer) {
-        favoritesView.frame = CGRect(x: 0, y: UIScreen.main.bounds.height, width: UIScreen.main.bounds.width, height: 200)
+        favoritesView.frame = CGRect(x: 0, y: UIScreen.main.bounds.height, width: UIScreen.main.bounds.width, height: 250)
         favoritesView.removeFromSuperview()
         greyView.removeFromSuperview()
     }
@@ -191,10 +217,12 @@ class ViewController: UIViewController, WKNavigationDelegate {
         favoritesView.backgroundColor = .darkGray
         favoritesView.layer.cornerRadius = 25
         favoritesView.addSubview(addToFavoritesButton)
+        addToFavoritesButton.addTarget(self, action: #selector(addToFavoritesButtonTapped), for: .touchUpInside)
+        
         self.view.addSubview(self.favoritesView)
         
         UIView.animate(withDuration: 0.5) {
-            self.favoritesView.frame = CGRect(x: 0, y: UIScreen.main.bounds.height - 200, width: UIScreen.main.bounds.width, height: 200)
+            self.favoritesView.frame = CGRect(x: 0, y: UIScreen.main.bounds.height - 250, width: UIScreen.main.bounds.width, height: 250)
         }
         
         addToFavoritesButton.translatesAutoresizingMaskIntoConstraints = false
@@ -205,6 +233,8 @@ class ViewController: UIViewController, WKNavigationDelegate {
             addToFavoritesButton.widthAnchor.constraint(equalToConstant: 200),
             addToFavoritesButton.heightAnchor.constraint(equalToConstant: 50)
         ])
+        
+        setupFavoritesTable()
     }
     
     private func loadPage() {
@@ -225,6 +255,14 @@ class ViewController: UIViewController, WKNavigationDelegate {
     
     @objc func goButtonTapped() {
         loadPage()
+        urlTextField.resignFirstResponder()
+    }
+    
+    @objc func addToFavoritesButtonTapped() {
+        if let currentURL = webView.url {
+            urlArray.append(SavedURL(savedURL: currentURL))
+        }
+        favoritesTable.reloadData()
     }
 
 }
@@ -238,13 +276,41 @@ extension ViewController: UITextFieldDelegate {
     
 }
 
+extension ViewController: UITableViewDelegate, UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return urlArray.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = favoritesTable.dequeueReusableCell(withIdentifier: "FavoritesTableViewCell", for: indexPath) as! FavoritesTableViewCell
+        cell.configure(savedURL: urlArray[indexPath.row])
+        return cell
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if let cell = tableView.cellForRow(at: indexPath) as? FavoritesTableViewCell {
+            if let text = cell.urlLabel.text {
+                url = URL(string: "\(text)")
+                urlTextField.text = text
+            }
+            let request = URLRequest(url: url ?? URL(fileURLWithPath: ""))
+            webView.load(request)
+        }
+        
+        favoritesView.frame = CGRect(x: 0, y: UIScreen.main.bounds.height, width: UIScreen.main.bounds.width, height: 250)
+        favoritesView.removeFromSuperview()
+        greyView.removeFromSuperview()
+    }
+    
+}
+
 /* Создать простой браузер, используя фреймворк WebKit. Необходимо создать приложение, которое позволит пользователям просматривать веб-содержимое, выполнять базовую навигацию и сохранять закладки.
  
  Создайте пользовательский интерфейс, который включает в себя:
 
  - элементы управления для ввода URL-адреса +
  - кнопку "Перейти" +
- - кнопку "Добавить закладку"
+ - кнопку "Добавить закладку" +
  
  Добавьте веб-представление WKWebView, которое будет отображать веб-содержимое. +
 
