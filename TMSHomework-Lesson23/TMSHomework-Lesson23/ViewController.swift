@@ -10,6 +10,8 @@ import WebKit
 
 class ViewController: UIViewController, WKNavigationDelegate {
 
+    var url = URL(string: "")
+    
     var webView: WKWebView = {
         let webView = WKWebView()
         webView.translatesAutoresizingMaskIntoConstraints = false
@@ -28,6 +30,20 @@ class ViewController: UIViewController, WKNavigationDelegate {
     let reloadButton = UIButton()
     let favoritesButton = UIButton()
     
+    let favoritesView = UIView(frame: CGRect(x: 0, y: UIScreen.main.bounds.height, width: UIScreen.main.bounds.width, height: 200))
+    let greyView = UIView(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height))
+    
+    let addToFavoritesButton: UIButton = {
+        let button = UIButton()
+        button.backgroundColor = .clear
+        button.setTitle("Добавить закладку", for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.layer.cornerRadius = 15
+        button.layer.borderWidth = 3
+        button.layer.borderColor = UIColor.white.cgColor
+        return button
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemGray
@@ -45,6 +61,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
         urlTextField.borderStyle = .roundedRect
         urlTextField.autocapitalizationType = .none
         urlTextField.placeholder = "Введите URL-адрес"
+        urlTextField.autocorrectionType = .no
         
         view.addSubview(urlTextField)
         
@@ -62,7 +79,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
         let goButtonWidth: CGFloat = UIScreen.main.bounds.width/4 - textFieldAndButtonSpace * 2
         let goButtonHeight = textFieldHeight
         
-        goButton.backgroundColor = #colorLiteral(red: 0, green: 0.461699307, blue: 1, alpha: 1)
+        goButton.backgroundColor = .systemBlue
         goButton.layer.cornerRadius = goButtonHeight / 5
         goButton.setTitle("Перейти", for: .normal)
         goButton.setTitleColor(.white, for: .normal)
@@ -131,7 +148,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
         } else if sender == reloadButton {
             webView.reload()
         } else if sender == favoritesButton {
-            
+            setupFavoritesView()
         }
     }
     
@@ -152,13 +169,54 @@ class ViewController: UIViewController, WKNavigationDelegate {
         forwardButton.isEnabled = webView.canGoForward
     }
     
-    private func loadPage() {
-        var url = URL(string: "")
+    private func setupGreyView() {
+        greyView.backgroundColor = UIColor(white: 0, alpha: 0.5)
         
-        if !urlTextField.text!.contains("https://") && !urlTextField.text!.contains("http://") {
-            url = URL(string: "https://\(urlTextField.text ?? "nil")")
-        } else {
-            url = URL(string: "\(urlTextField.text ?? "nil")")
+        let gesture = UITapGestureRecognizer()
+        gesture.addTarget(self, action: #selector(processTap(_:)))
+        greyView.addGestureRecognizer(gesture)
+        
+        view.addSubview(greyView)
+    }
+    
+    @objc func processTap(_ gesture: UITapGestureRecognizer) {
+        favoritesView.frame = CGRect(x: 0, y: UIScreen.main.bounds.height, width: UIScreen.main.bounds.width, height: 200)
+        favoritesView.removeFromSuperview()
+        greyView.removeFromSuperview()
+    }
+    
+    private func setupFavoritesView() {
+        setupGreyView()
+        
+        favoritesView.backgroundColor = .darkGray
+        favoritesView.layer.cornerRadius = 25
+        favoritesView.addSubview(addToFavoritesButton)
+        self.view.addSubview(self.favoritesView)
+        
+        UIView.animate(withDuration: 0.5) {
+            self.favoritesView.frame = CGRect(x: 0, y: UIScreen.main.bounds.height - 200, width: UIScreen.main.bounds.width, height: 200)
+        }
+        
+        addToFavoritesButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            addToFavoritesButton.topAnchor.constraint(equalTo: favoritesView.topAnchor, constant: 20),
+            addToFavoritesButton.leadingAnchor.constraint(equalTo: favoritesView.leadingAnchor, constant: 20),
+            addToFavoritesButton.widthAnchor.constraint(equalToConstant: 200),
+            addToFavoritesButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+    }
+    
+    private func loadPage() {
+        if let text = urlTextField.text {
+            
+            if text.contains("https://") && text.contains(".") {
+                url = URL(string: text)
+            } else if text.contains(".") && !text.contains("https://") {
+                url = URL(string: "https://\(text)")
+            } else {
+                url = URL(string: "https://www.google.com/search?q=\(text)")
+            }
         }
         
         let request = URLRequest(url: url ?? URL(fileURLWithPath: ""))
@@ -169,21 +227,12 @@ class ViewController: UIViewController, WKNavigationDelegate {
         loadPage()
     }
 
-
 }
 
 extension ViewController: UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         textField.resignFirstResponder()
-        if let text = textField.text {
-            if !text.contains("https://") && !text.contains("http://") && !text.contains(".") && !text.isEmpty {
-                let url = URL(string: "https://www.google.com/search?q=\(text)")
-                let request = URLRequest(url: url ?? URL(fileURLWithPath: ""))
-                webView.load(request)
-            } else {
-                loadPage()
-            }
-        }
+        loadPage()
         return true
     }
     
@@ -197,7 +246,7 @@ extension ViewController: UITextFieldDelegate {
  - кнопку "Перейти" +
  - кнопку "Добавить закладку"
  
- Добавьте веб-представление WKWebView, которое будет отображать веб-содержимое.
+ Добавьте веб-представление WKWebView, которое будет отображать веб-содержимое. +
 
  Закладки можно отобразить в таблице снизу, при нажатии будет осуществляться переход по странице. */
 
